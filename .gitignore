@@ -1,0 +1,101 @@
+## Virtual Environments
+/.env
+/env
+/venv
+/.venv
+myenv/
+ENV/
+
+## Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+## Model Files (Large)
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.model
+*.keras
+
+## Data Files (Only ignore generated outputs, keep training CSVs)
+data/
+outputs/
+logs/
+*.xlsx
+*.xls
+predictions/
+reports/
+
+## IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+## OS Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+## Environment & Secrets
+.env
+.env.local
+.env*.local
+secrets/
+
+## Docker & Kubernetes
+docker-compose.override.yml
+kubectl-config
+
+## Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+## Logs
+*.log
+logs/
+
+## Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+## Package Files
+dist/
+build/
+*.whl
+
+## Other
+.cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+node_modules/

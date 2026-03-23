@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Price Prediction Result for {{ result.crop_name }}</h2>
+
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Price Predictions:</h4>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Predicted Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pred in result.predictions %}
+                            <tr>
+                                <td>{{ pred.date if pred.date else 'Day ' + pred.day|string }}</td>
+                                <td>₹{{ "%.2f"|format(pred.price) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h4>Price Trend Chart:</h4>
+                <div style="position: relative; width: 100%; height: 350px; margin-bottom: 20px;">
+                    <canvas id="priceChart" width="400" height="350"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Card -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Historical (Min)</h6>
+                        <p class="card-text">₹{{ "%.2f"|format(result.chart_data.stats.min_historical) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Historical (Avg)</h6>
+                        <p class="card-text">₹{{ "%.2f"|format(result.chart_data.stats.avg_historical) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Predicted (Avg)</h6>
+                        <p class="card-text">₹{{ "%.2f"|format(result.chart_data.stats.avg_predicted) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Std Deviation</h6>
+                        <p class="card-text">₹{{ "%.2f"|format(result.chart_data.stats.std_dev) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <a href="{{ url_for('price_prediction') }}" class="btn" style="background-color: #1f5666; color: white;">New Prediction</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Wait for DOM to be fully loaded before initializing chart
+    document.addEventListener('DOMContentLoaded', function() {
+        // Chart data from Flask backend
+        const chartData = {{ result.chart_data | tojson }};
+        
+        // Initialize Chart.js
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        
+        const historicalLength = chartData.historical_prices.length;
+        const predictedLength = chartData.predicted_prices.length;
+        
+        // Create label arrays
+        const historicalLabels = Array.from({length: historicalLength}, (_, i) => `H${i + 1}`);
+        const predictedLabels = Array.from({length: predictedLength}, (_, i) => `P${i + 1}`);
+        const allLabels = [...historicalLabels, ...predictedLabels];
+        
+        const priceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: allLabels,
+                datasets: [
+                    {
+                        label: 'Historical Prices',
+                        data: [...chartData.historical_prices, null],
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#2563eb',
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Predicted Prices',
+                        data: Array(historicalLength - 1).fill(null).concat([
+                            chartData.historical_prices[historicalLength - 1],
+                            ...chartData.predicted_prices
+                        ]),
+                        borderColor: '#dc2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#dc2626',
+                        pointHoverRadius: 6,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Confidence Interval (Upper)',
+                        data: Array(historicalLength - 1).fill(null).concat([
+                            chartData.historical_prices[historicalLength - 1] + chartData.stats.std_dev,
+                            ...chartData.confidence_upper
+                        ]),
+                        borderColor: 'rgba(220, 38, 38, 0.3)',
+                        backgroundColor: 'rgba(220, 38, 38, 0.05)',
+                        borderWidth: 1,
+                        tension: 0.4,
+                        fill: false,
+                        pointRadius: 0,
+                        borderDash: [3, 3]
+                    },
+                    {
+                        label: 'Confidence Interval (Lower)',
+                        data: Array(historicalLength - 1).fill(null).concat([
+                            chartData.historical_prices[historicalLength - 1] - chartData.stats.std_dev,
+                            ...chartData.confidence_lower
+                        ]),
+                        borderColor: 'rgba(220, 38, 38, 0.3)',
+                        backgroundColor: 'rgba(220, 38, 38, 0.05)',
+                        borderWidth: 1,
+                        tension: 0.4,
+                        fill: false,
+                        pointRadius: 0,
+                        borderDash: [3, 3]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += '₹' + context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Price (₹)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '₹' + value.toFixed(2);
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time Period'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Save chart data to localStorage silently
+        function saveToLocalStorage() {
+            const storageData = {
+                crop_name: chartData.crop_name,
+                timestamp: new Date().toISOString(),
+                historical_prices: chartData.historical_prices,
+                predicted_prices: chartData.predicted_prices,
+                stats: chartData.stats
+            };
+            
+            let predictions = JSON.parse(localStorage.getItem('price_predictions')) || [];
+            predictions.push(storageData);
+            
+            if (predictions.length > 10) {
+                predictions = predictions.slice(-10);
+            }
+            
+            localStorage.setItem('price_predictions', JSON.stringify(predictions));
+        }
+        
+        saveToLocalStorage();
+        console.log('Chart loaded successfully');
+    });
+</script>
+{% endblock %}

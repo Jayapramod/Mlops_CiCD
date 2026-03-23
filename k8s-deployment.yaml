@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agrox-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agrox-app
+  template:
+    metadata:
+      labels:
+        app: agrox-app
+    spec:
+      containers:
+      - name: agrox-app
+        image: your-dockerhub-username/agrox:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: FLASK_ENV
+          value: "production"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agrox-service
+spec:
+  selector:
+    app: agrox-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer
