@@ -2,69 +2,84 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'your-dockerhub-username/agrox'
-        DOCKER_TAG = 'latest'
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-        SMTP_SERVER = credentials('smtp-server')
-        SMTP_PORT = credentials('smtp-port')
-        SENDER_EMAIL = credentials('sender-email')
-        SENDER_PASSWORD = credentials('sender-password')
-        RECIPIENT_EMAIL = credentials('recipient-email')
+        IMAGE = "yourdockerhubusername/agrox"
+        VERSION = "${BUILD_NUMBER}"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-username/your-repo.git'
+                git branch: 'main', url: 'https://github.com/Jayapramod/Mlops_CiCD.git'
             }
         }
 
-        stage('Retrain Models') {
+        stage('Setup Python') {
             steps {
                 sh '''
-                    python3 -m venv venv
-                    source venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    
-                    export SMTP_SERVER=$SMTP_SERVER
-                    export SMTP_PORT=$SMTP_PORT
-                    export SENDER_EMAIL=$SENDER_EMAIL
-                    export SENDER_PASSWORD=$SENDER_PASSWORD
-                    export RECIPIENT_EMAIL=$RECIPIENT_EMAIL
-                    
-                    echo "🚀 Starting Model Retraining..."
-                    python3 retrain_pipeline.py
-                    
-                    if [ $? -ne 0 ]; then
-                        echo "❌ Model retraining failed!"
-                        exit 1
-                    fi
-                    
-                    echo "✅ Model retraining completed successfully!"
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
                 '''
+            }
+        }
+
+        stage('Train Model + Send Email') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'email-creds',
+                    usernameVariable: 'EMAIL',
+                    passwordVariable: 'EMAIL_PASSWORD'
+                )]) {
+                    sh '''
+                    . venv/bin/activate
+
+                    export EMAIL=$EMAIL
+                    export EMAIL_PASSWORD=$EMAIL_PASSWORD
+
+                    echo "🚀 Starting Model Retraining..."
+                    python3 mlops/retrain_pipeline.py
+                    '''
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                sh '''
+                docker build -t $IMAGE:$VERSION .
+                docker tag $IMAGE:$VERSION $IMAGE:latest
+                '''
+            }
+        }
+
+        stage('Login to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                }
             }
         }
 
         stage('Push Docker Image') {
             steps {
                 sh '''
-                    echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
-                    docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                    docker logout
+                docker push $IMAGE:$VERSION
+                docker push $IMAGE:latest
                 '''
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh 'kubectl set image deployment/agrox-app agrox-app=${DOCKER_IMAGE}:${DOCKER_TAG}'
+                sh '''
+                kubectl set image deployment/agrox-app agrox-app=$IMAGE:$VERSION
+                '''
             }
         }
     }
