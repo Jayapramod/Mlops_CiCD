@@ -65,7 +65,8 @@ class RetrainPipeline:
 
             result = subprocess.run(
                 cmd,
-                capture_output=True,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
                 text=True,
                 cwd=self.base_path
             )
