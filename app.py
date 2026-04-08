@@ -211,4 +211,11 @@ def data_file(filename):
 if __name__ == '__main__':
     os.makedirs('outputs', exist_ok=True)
     os.makedirs('data', exist_ok=True)
-    app.run(debug=True, port=8000)
+
+    print("🚀 Starting AgroX Flask App...")
+
+    app.run(
+        host="0.0.0.0",   # ✅ REQUIRED for Kubernetes
+        port=8000,        # ✅ matches your service
+        debug=False       # ✅ disable debug in container
+    )
