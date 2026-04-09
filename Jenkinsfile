@@ -76,7 +76,6 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 sh '''
-                docker push $IMAGE:$VERSION
                 docker push $IMAGE:latest
                 '''
             }
