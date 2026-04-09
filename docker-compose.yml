@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  agrox-app:
+    image: jayapramod/agrox:latest
+    container_name: agrox-app
+    ports:
+      - "8000:8000"
+    restart: always
