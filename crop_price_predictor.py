@@ -20,7 +20,7 @@ class CropPricePredictor:
         self.scaler = StandardScaler()
         self.sequence_length = 60  # Increased from 30 to 60 for better context
         self.prediction_days = 5   # Predict prices for next 5 days
-        self.model_path = "crop_price_model"
+        self.model_path = "crop_price_prediction"  # Fixed: matches main.py expectations
         self.scaler_path = "price_scaler.pkl"
         
     def load_data(self, data_path=None):
