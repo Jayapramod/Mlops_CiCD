@@ -2,8 +2,11 @@ pipeline {
     agent any
 
     environment {
-        IMAGE = "yourdockerhubusername/agrox"
-        VERSION = "${BUILD_NUMBER}"
+        AWS_REGION      = "ap-south-1"
+        AWS_ACCOUNT_ID  = "687222805896"             
+        ECR_REPO        = "agrox"
+        IMAGE           = "687222805896.dkr.ecr.ap-south-1.amazonaws.com/agrox"
+        VERSION         = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -45,24 +48,28 @@ pipeline {
             }
         }
 
+        stage('Login to ECR') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh '''
+                    aws ecr get-login-password --region $AWS_REGION \
+                        | docker login --username AWS --password-stdin \
+                        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                    '''
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 sh '''
                 docker build -t $IMAGE:$VERSION .
                 docker tag $IMAGE:$VERSION $IMAGE:latest
                 '''
-            }
-        }
-
-        stage('Login to DockerHub') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                }
             }
         }
 
@@ -86,10 +93,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline completed successfully!"
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Pipeline failed!"
+            echo "Pipeline failed!"
         }
         always {
             sh 'rm -rf venv'
