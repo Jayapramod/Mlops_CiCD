@@ -3,10 +3,9 @@ pipeline {
 
     environment {
         AWS_REGION      = "ap-south-1"
-        AWS_ACCOUNT_ID  = "687222805896"             
+        AWS_ACCOUNT_ID  = "687222805896"
         ECR_REPO        = "agrox"
         IMAGE           = "687222805896.dkr.ecr.ap-south-1.amazonaws.com/agrox"
-        VERSION         = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -67,8 +66,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                docker build -t $IMAGE:$VERSION .
-                docker tag $IMAGE:$VERSION $IMAGE:latest
+                docker build -t $IMAGE:latest .
                 '''
             }
         }
@@ -83,9 +81,17 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh '''
-                kubectl set image deployment/agrox-app agrox-app=$IMAGE:$VERSION
-                '''
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh '''
+                    aws eks update-kubeconfig --region $AWS_REGION --name agrox-cluster
+                    kubectl rollout restart deployment/agrox-app
+                    kubectl rollout status deployment/agrox-app --timeout=120s
+                    '''
+                }
             }
         }
     }
