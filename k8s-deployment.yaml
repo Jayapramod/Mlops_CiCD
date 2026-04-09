@@ -16,7 +16,7 @@ spec:
       - name: agrox-app
         image: your-dockerhub-username/agrox:latest
         ports:
-        - containerPort: 5000
+        - containerPort: 8000
         env:
         - name: FLASK_ENV
           value: "production"
@@ -38,5 +38,5 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 5000
+      targetPort: 8000
   type: LoadBalancer
