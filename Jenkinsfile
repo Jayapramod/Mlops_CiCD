@@ -42,7 +42,7 @@ pipeline {
                     export EMAIL_PASSWORD=$EMAIL_PASSWORD
 
                     echo "🚀 Starting Model Retraining..."
-                    python3 mlops/retrain_pipeline.py
+                    python3 retrain_pipeline.py
                     '''
                 }
             }
