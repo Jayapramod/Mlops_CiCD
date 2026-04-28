@@ -105,23 +105,6 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-creds',
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    sh '''
-                    aws eks update-kubeconfig --region $AWS_REGION --name agrox-cluster
-                    kubectl rollout restart deployment/agrox-app
-                    kubectl rollout status deployment/agrox-app --timeout=120s
-                    '''
-                }
-            }
-        }
-    }
-
     post {
         success {
             echo "Pipeline completed successfully!"
