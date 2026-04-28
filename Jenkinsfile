@@ -101,9 +101,11 @@ pipeline {
             steps {
                 sh '''
                 docker push $IMAGE:latest
+                echo "✅ Docker image pushed to ECR successfully"
                 '''
             }
         }
+    }
 
     post {
         success {
