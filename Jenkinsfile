@@ -47,6 +47,32 @@ pipeline {
             }
         }
 
+        stage('Create ECR Repository') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh '''
+                    echo "✅ Checking if ECR repository exists..."
+                    
+                    if aws ecr describe-repositories --repository-names $ECR_REPO --region $AWS_REGION 2>/dev/null; then
+                        echo "✅ ECR repository '$ECR_REPO' already exists"
+                    else
+                        echo "📦 Creating ECR repository '$ECR_REPO'..."
+                        aws ecr create-repository \
+                            --repository-name $ECR_REPO \
+                            --region $AWS_REGION \
+                            --image-scanning-configuration scanOnPush=true \
+                            --no-cli-pager
+                        echo "✅ ECR repository '$ECR_REPO' created successfully"
+                    fi
+                    '''
+                }
+            }
+        }
+
         stage('Login to ECR') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
