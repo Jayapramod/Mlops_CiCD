@@ -1,38 +1,14 @@
 # ---------------------------------------------------------------------------
 # ECR Repository
 # ---------------------------------------------------------------------------
-resource "aws_ecr_repository" "agrox" {
-  name                 = var.ecr_repo_name
-  image_tag_mutability = "MUTABLE" # Required to overwrite :latest on each push
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    Project   = "agrox"
-    ManagedBy = "terraform"
-  }
-}
-
-# Keep only the 10 most recent images to control storage costs
-resource "aws_ecr_lifecycle_policy" "agrox" {
-  repository = aws_ecr_repository.agrox.name
-
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Keep last 10 images"
-        selection = {
-          tagStatus   = "any"
-          countType   = "imageCountMoreThan"
-          countNumber = 10
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
-}
+# NOTE: ECR repository is created and managed by Jenkins pipeline.
+# This file is kept for reference. Terraform only references the existing ECR
+# via the ecr_repo_url variable to avoid tfstate pollution and conflicts.
+#
+# Jenkins handles:
+#   - ECR repository creation (if not exists)
+#   - Docker image building and pushing
+#   - Image lifecycle policies
+#
+# To create ECR manually (if needed before Jenkins creates it):
+#   aws ecr create-repository --repository-name agrox --region ap-south-1

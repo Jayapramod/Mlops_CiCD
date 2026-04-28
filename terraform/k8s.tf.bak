@@ -15,12 +15,6 @@ provider "kubernetes" {
   host                   = data.aws_eks_cluster.agrox.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.agrox.certificate_authority[0].data)
   token                  = data.aws_eks_cluster_auth.agrox.token
-}
-
-# ---------------------------------------------------------------------------
-# Deployment
-# ---------------------------------------------------------------------------
-resource "kubernetes_deployment" "agrox" {
   depends_on = [module.eks]
 
   metadata {
@@ -54,7 +48,7 @@ resource "kubernetes_deployment" "agrox" {
       spec {
         container {
           name  = "agrox-app"
-          image = "${var.ecr_repo_url}:latest"
+          image = "${aws_ecr_repository.agrox.repository_url}:latest"
 
           # Always re-pull :latest — required for `kubectl rollout restart` to
           # pick up a new image pushed with the same tag by Jenkins
@@ -71,12 +65,12 @@ resource "kubernetes_deployment" "agrox" {
 
           resources {
             requests = {
-              memory = "256Mi"
-              cpu    = "250m"
-            }
-            limits = {
               memory = "512Mi"
               cpu    = "500m"
+            }
+            limits = {
+              memory = "1Gi"
+              cpu    = "1000m"
             }
           }
 
@@ -91,7 +85,7 @@ resource "kubernetes_deployment" "agrox" {
             failure_threshold     = 3
           }
 
-          # Readiness probe — keeps pod out of LB rotation until it is truly ready
+          # Readiness probe — keeps pod out of LB rotation until it's truly ready
           readiness_probe {
             http_get {
               path = "/health"

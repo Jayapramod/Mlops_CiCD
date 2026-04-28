@@ -1,0 +1,21 @@
+│ Error: Failed to create deployment: Unauthorized
+│ 
+│   with kubernetes_deployment.agrox,
+│   on k8s.tf line 18, in resource "kubernetes_deployment" "agrox":
+│   18: resource "kubernetes_deployment" "agrox" {
+│ 
+╵
+╷
+│ Error: Unauthorized
+│ 
+│   with kubernetes_service.agrox,
+│   on k8s.tf line 86, in resource "kubernetes_service" "agrox":
+│   86: resource "kubernetes_service" "agrox" {
+│ 
+╵
+╷
+│ Error: waiting for EKS Node Group (agrox-cluster:agrox-nodes-20260409210646690500000001) create: unexpected state 'CREATE_FAILED', wanted target 'ACTIVE'. last error: eks-agrox-nodes-20260409210646690500000001-62ceba08-d2ff-c47e-3a01-ae440de5009f: AsgInstanceLaunchFailures: Could not launch On-Demand Instances. InvalidParameterCombination - The specified instance type is not eligible for Free Tier. For a list of Free Tier instance types, run 'describe-instance-types' with the filter 'free-tier-eligible=true'. Launching EC2 instance failed.
+│ 
+│   with module.eks.module.eks_managed_node_group["agrox-nodes"].aws_eks_node_group.this[0],
+│   on .terraform/modules/eks/modules/eks-managed-node-group/main.tf line 395, in resource "aws_eks_node_group" "this":
+│  395: resource "aws_eks_node_group" "this" {

@@ -9,8 +9,8 @@ output "cluster_endpoint" {
 }
 
 output "ecr_repo_url" {
-  description = "Full ECR repository URL — must match IMAGE in the Jenkinsfile."
-  value       = aws_ecr_repository.agrox.repository_url
+  description = "ECR repository URL from variable (managed by Jenkins, not Terraform)."
+  value       = var.ecr_repo_url
 }
 
 output "load_balancer_hostname" {

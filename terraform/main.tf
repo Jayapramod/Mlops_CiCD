@@ -48,13 +48,18 @@ module "eks" {
   version = "~> 20.0"
 
   cluster_name    = var.cluster_name
-  cluster_version = "1.29"
+  cluster_version = null  # Use AWS EKS default (always latest)
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.public_subnets
 
   # Allow public access to the Kubernetes API server
   cluster_endpoint_public_access = true
+
+  # Grant the Terraform caller cluster-admin access so the Kubernetes provider
+  # can create in-cluster resources during the same apply.
+  authentication_mode                      = "API_AND_CONFIG_MAP"
+  enable_cluster_creator_admin_permissions = true
 
   # Managed node group
   eks_managed_node_groups = {

@@ -74,6 +74,21 @@ secrets/
 docker-compose.override.yml
 kubectl-config
 
+## Terraform (State & Config - Managed by Jenkins)
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
+terraform/terraform.tfstate.backup
+terraform/tfplan
+terraform/.terraformrc
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+terraform/temp/
+
 ## Testing & Coverage
 .pytest_cache/
 .coverage
