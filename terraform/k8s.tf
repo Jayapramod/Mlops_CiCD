@@ -1,144 +1,54 @@
 # ---------------------------------------------------------------------------
-# Kubernetes provider — authenticates using the Terraform AWS provider
+# NOTE: Using ECS Fargate for container orchestration instead of Kubernetes
 # ---------------------------------------------------------------------------
-data "aws_eks_cluster" "agrox" {
-  name       = module.eks.cluster_name
-  depends_on = [module.eks]
-}
-
-data "aws_eks_cluster_auth" "agrox" {
-  name       = module.eks.cluster_name
-  depends_on = [module.eks]
-}
-
-provider "kubernetes" {
-  host                   = data.aws_eks_cluster.agrox.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.agrox.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.agrox.token
-}
-
+# This file is kept for reference. ECS is configured to:
+#
+# 1. Run AgroX application as containerized tasks on AWS Fargate
+# 2. Pull Docker image automatically from ECR via Jenkins pipeline
+# 3. Balance traffic through Application Load Balancer (ALB)
+# 4. Provide auto-scaling based on CPU and memory utilization
+#
+# Infrastructure Components:
+# - VPC: 10.0.0.0/16 (public + private subnets)
+# - Public Subnet: 10.0.1.0/24 (ALB placement)
+# - Private Subnet: 10.0.2.0/24 (ECS task placement)
+# - NAT Gateway: Provides private subnet outbound internet access
+# - ALB: Routes external traffic to ECS tasks
+# - ECS Cluster: Manages Fargate tasks
+# - CloudWatch: Captures application logs and metrics
+#
+# Deployment Workflow:
+# 1. Jenkins triggers on code commit
+# 2. Jenkins builds Docker image and pushes to ECR
+# 3. Terraform applies ECS configuration
+# 4. ECS pulls latest image from ECR
+# 5. ALB routes traffic to running tasks
+# 6. Auto-scaling adjusts task count based on CPU/memory
+#
+# Terraform Modules & Files:
+# - main.tf: VPC, subnets, routing, security groups
+# - alb.tf: Application Load Balancer, listener, target group
+# - ecs.tf: ECS cluster, task definition, service, scaling policies
+# - variables.tf: Configuration inputs
+# - outputs.tf: Key resource identifiers
+#
+# To deploy:
+#   cd terraform/
+#   terraform init
+#   terraform plan
+#   terraform apply
+#
+# To view application:
+#   Open browser to: <alb_dns_name> (from terraform output)
+#
+# To check logs:
+#   aws logs tail /ecs/agrox-cluster --follow
+#
+# To scale tasks:
+#   aws ecs update-service \
+#     --cluster agrox-cluster \
+#     --service agrox-service \
+#     --desired-count 2
 # ---------------------------------------------------------------------------
-# Deployment
-# ---------------------------------------------------------------------------
-resource "kubernetes_deployment" "agrox" {
-  depends_on = [module.eks]
 
-  metadata {
-    name = "agrox-app"
-    labels = {
-      app = "agrox-app"
-    }
-  }
 
-  spec {
-    replicas = 1
-
-    selector {
-      match_labels = {
-        app = "agrox-app"
-      }
-    }
-
-    template {
-      metadata {
-        labels = {
-          app = "agrox-app"
-        }
-        # Jenkins rolling restarts update this annotation to force a re-pull
-        # of :latest without changing the image tag itself
-        annotations = {
-          "kubectl.kubernetes.io/restartedAt" = ""
-        }
-      }
-
-      spec {
-        container {
-          name  = "agrox-app"
-          image = "${var.ecr_repo_url}:latest"
-
-          # Always re-pull :latest — required for `kubectl rollout restart` to
-          # pick up a new image pushed with the same tag by Jenkins
-          image_pull_policy = "Always"
-
-          port {
-            container_port = 8000
-          }
-
-          env {
-            name  = "FLASK_ENV"
-            value = "production"
-          }
-
-          resources {
-            requests = {
-              memory = "256Mi"
-              cpu    = "250m"
-            }
-            limits = {
-              memory = "512Mi"
-              cpu    = "500m"
-            }
-          }
-
-          # Basic liveness probe — restarts the container if /health stops responding
-          liveness_probe {
-            http_get {
-              path = "/health"
-              port = 8000
-            }
-            initial_delay_seconds = 15
-            period_seconds        = 20
-            failure_threshold     = 3
-          }
-
-          # Readiness probe — keeps pod out of LB rotation until it is truly ready
-          readiness_probe {
-            http_get {
-              path = "/health"
-              port = 8000
-            }
-            initial_delay_seconds = 10
-            period_seconds        = 10
-            failure_threshold     = 3
-          }
-        }
-      }
-    }
-  }
-
-  # Ignore image changes managed externally by Jenkins rolling restarts
-  lifecycle {
-    ignore_changes = [
-      spec[0].template[0].metadata[0].annotations,
-    ]
-  }
-}
-
-# ---------------------------------------------------------------------------
-# Service — LoadBalancer exposes port 80 externally → 8000 on the container
-# ---------------------------------------------------------------------------
-resource "kubernetes_service" "agrox" {
-  depends_on = [module.eks]
-
-  metadata {
-    name = "agrox-service"
-    annotations = {
-      # Ensures the AWS LB is internet-facing (remove if internal only)
-      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
-    }
-  }
-
-  spec {
-    selector = {
-      app = "agrox-app"
-    }
-
-    type = "LoadBalancer"
-
-    port {
-      protocol    = "TCP"
-      port        = 80
-      target_port = 8000
-    }
-  }
-}

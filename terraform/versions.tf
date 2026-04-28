@@ -6,10 +6,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.27"
-    }
   }
 
   # Recommended: enable S3 backend for shared/team state management.
