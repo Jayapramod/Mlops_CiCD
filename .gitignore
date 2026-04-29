@@ -115,3 +115,5 @@ build/
 dmypy.json
 node_modules/
 **/.terraform/
+*.tfvars
+*.tfvars.json

@@ -6,6 +6,12 @@ pipeline {
         AWS_ACCOUNT_ID  = "687222805896"
         ECR_REPO        = "agrox"
         IMAGE           = "687222805896.dkr.ecr.ap-south-1.amazonaws.com/agrox"
+        
+        AZURE_SUBSCRIPTION_ID = "263f7f3f-70d2-4638-a364-2275b2cfafb7"
+        AZURE_TENANT_ID       = "2c5bdaf4-8ff2-4bd9-bd54-7c50ab219590"
+        AZURE_REGISTRY        = "agrodecmacrdev.azurecr.io"
+        ACR_REPO_NAME         = "agrox"
+        ACR_IMAGE             = "${AZURE_REGISTRY}/${ACR_REPO_NAME}"
     }
 
     stages {
@@ -97,11 +103,48 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push Docker Image to ECR') {
             steps {
                 sh '''
                 docker push $IMAGE:latest
                 echo "✅ Docker image pushed to ECR successfully"
+                '''
+            }
+        }
+
+        stage('Login to ACR via Service Principal') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'azure-sp-creds',
+                    usernameVariable: 'AZURE_CLIENT_ID',
+                    passwordVariable: 'AZURE_CLIENT_SECRET'
+                )]) {
+                    sh '''
+                    echo "🔐 Authenticating with Azure Service Principal..."
+                    
+                    az login --service-principal \
+                        -u $AZURE_CLIENT_ID \
+                        -p $AZURE_CLIENT_SECRET \
+                        --tenant $AZURE_TENANT_ID
+                    
+                    az account set --subscription $AZURE_SUBSCRIPTION_ID
+                    
+                    az acr login --name agrodecmacrdev
+                    
+                    echo "✅ Successfully logged in to ACR via Service Principal"
+                    '''
+                }
+            }
+        }
+
+        stage('Push Docker Image to ACR') {
+            steps {
+                sh '''
+                docker tag $IMAGE:latest $ACR_IMAGE:latest
+                docker tag $IMAGE:latest $ACR_IMAGE:${BUILD_NUMBER}
+                docker push $ACR_IMAGE:latest
+                docker push $ACR_IMAGE:${BUILD_NUMBER}
+                echo "✅ Docker image pushed to ACR successfully"
                 '''
             }
         }
