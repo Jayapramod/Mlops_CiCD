@@ -114,3 +114,4 @@ build/
 .dmypy.json
 dmypy.json
 node_modules/
+**/.terraform/
