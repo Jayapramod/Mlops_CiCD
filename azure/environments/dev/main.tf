@@ -9,16 +9,6 @@ module "networking" {
   acr_subnet_cidr  = var.acr_subnet_cidr
 }
 
-module "acr" {
-  source = "../../modules/acr"
-
-  environment         = var.environment
-  project_name        = var.project_name
-  location            = var.location
-  resource_group_name = module.networking.resource_group_name
-  acr_sku             = var.acr_sku
-}
-
 module "keyvault" {
   source = "../../modules/keyvault"
 
@@ -26,8 +16,6 @@ module "keyvault" {
   project_name        = var.project_name
   location            = var.location
   resource_group_name = module.networking.resource_group_name
-  acr_admin_username  = module.acr.acr_admin_username
-  acr_admin_password  = module.acr.acr_admin_password
 }
 
 module "aks" {
@@ -38,7 +26,6 @@ module "aks" {
   location            = var.location
   resource_group_name = module.networking.resource_group_name
   aks_subnet_id       = module.networking.aks_subnet_id
-  acr_id              = module.acr.acr_id
   kubernetes_version  = var.kubernetes_version
   node_count          = var.node_count
   vm_size             = var.vm_size
