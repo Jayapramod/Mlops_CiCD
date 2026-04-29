@@ -1,23 +1,15 @@
-locals {
-  vpc_cidr             = "10.0.0.0/16"
-  public_subnet_az1    = "10.0.1.0/24"
-  public_subnet_az2    = "10.0.2.0/24"
-  private_subnet_cidr  = "10.0.10.0/24"
-  az1                  = "${var.aws_region}a"
-  az2                  = "${var.aws_region}b"
-}
-
 # ---------------------------------------------------------------------------
 # VPC
 # ---------------------------------------------------------------------------
-resource "aws_vpc" "agrox" {
-  cidr_block           = local.vpc_cidr
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
 
   tags = {
-    Name      = "${var.cluster_name}-vpc"
-    Project   = "agrox"
+    Name      = "${var.environment}-vpc"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
@@ -25,12 +17,13 @@ resource "aws_vpc" "agrox" {
 # ---------------------------------------------------------------------------
 # Internet Gateway
 # ---------------------------------------------------------------------------
-resource "aws_internet_gateway" "agrox" {
-  vpc_id = aws_vpc.agrox.id
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
 
   tags = {
-    Name      = "${var.cluster_name}-igw"
-    Project   = "agrox"
+    Name      = "${var.environment}-igw"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
@@ -39,29 +32,31 @@ resource "aws_internet_gateway" "agrox" {
 # Public Subnets (across 2 AZs for ALB requirement)
 # ---------------------------------------------------------------------------
 resource "aws_subnet" "public_az1" {
-  vpc_id            = aws_vpc.agrox.id
-  cidr_block        = local.public_subnet_az1
-  availability_zone = local.az1
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnet_az1_cidr
+  availability_zone = var.az1
 
   map_public_ip_on_launch = true
 
   tags = {
-    Name      = "${var.cluster_name}-public-subnet-az1"
-    Project   = "agrox"
+    Name      = "${var.environment}-public-subnet-az1"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
 
 resource "aws_subnet" "public_az2" {
-  vpc_id            = aws_vpc.agrox.id
-  cidr_block        = local.public_subnet_az2
-  availability_zone = local.az2
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnet_az2_cidr
+  availability_zone = var.az2
 
   map_public_ip_on_launch = true
 
   tags = {
-    Name      = "${var.cluster_name}-public-subnet-az2"
-    Project   = "agrox"
+    Name      = "${var.environment}-public-subnet-az2"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
@@ -73,41 +68,44 @@ resource "aws_eip" "nat" {
   domain = "vpc"
 
   tags = {
-    Name      = "${var.cluster_name}-eip"
-    Project   = "agrox"
+    Name      = "${var.environment}-eip"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 
-  depends_on = [aws_internet_gateway.agrox]
+  depends_on = [aws_internet_gateway.main]
 }
 
 # ---------------------------------------------------------------------------
 # NAT Gateway (in public subnet AZ1 for private subnet outbound)
 # ---------------------------------------------------------------------------
-resource "aws_nat_gateway" "agrox" {
+resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public_az1.id
 
   tags = {
-    Name      = "${var.cluster_name}-nat"
-    Project   = "agrox"
+    Name      = "${var.environment}-nat"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 
-  depends_on = [aws_internet_gateway.agrox]
+  depends_on = [aws_internet_gateway.main]
 }
 
 # ---------------------------------------------------------------------------
 # Private Subnet
 # ---------------------------------------------------------------------------
 resource "aws_subnet" "private" {
-  vpc_id            = aws_vpc.agrox.id
-  cidr_block        = local.private_subnet_cidr
-  availability_zone = local.az1
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidr
+  availability_zone = var.az1
 
   tags = {
-    Name      = "${var.cluster_name}-private-subnet"
-    Project   = "agrox"
+    Name      = "${var.environment}-private-subnet"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
@@ -117,16 +115,17 @@ resource "aws_subnet" "private" {
 # ---------------------------------------------------------------------------
 # Public Route Table
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.agrox.id
+  vpc_id = aws_vpc.main.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.agrox.id
+    gateway_id = aws_internet_gateway.main.id
   }
 
   tags = {
-    Name      = "${var.cluster_name}-public-rt"
-    Project   = "agrox"
+    Name      = "${var.environment}-public-rt"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
@@ -143,16 +142,17 @@ resource "aws_route_table_association" "public_az2" {
 
 # Private Route Table
 resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.agrox.id
+  vpc_id = aws_vpc.main.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.agrox.id
+    nat_gateway_id = aws_nat_gateway.main.id
   }
 
   tags = {
-    Name      = "${var.cluster_name}-private-rt"
-    Project   = "agrox"
+    Name      = "${var.environment}-private-rt"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
@@ -167,9 +167,9 @@ resource "aws_route_table_association" "private" {
 # ---------------------------------------------------------------------------
 # ALB Security Group
 resource "aws_security_group" "alb" {
-  name        = "${var.cluster_name}-alb-sg"
+  name        = "${var.environment}-alb-sg"
   description = "Security group for ALB"
-  vpc_id      = aws_vpc.agrox.id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     from_port   = 80
@@ -193,17 +193,18 @@ resource "aws_security_group" "alb" {
   }
 
   tags = {
-    Name      = "${var.cluster_name}-alb-sg"
-    Project   = "agrox"
+    Name      = "${var.environment}-alb-sg"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
 
 # ECS Tasks Security Group
 resource "aws_security_group" "ecs_tasks" {
-  name        = "${var.cluster_name}-ecs-tasks-sg"
+  name        = "${var.environment}-ecs-tasks-sg"
   description = "Security group for ECS tasks"
-  vpc_id      = aws_vpc.agrox.id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     from_port       = var.container_port
@@ -220,9 +221,9 @@ resource "aws_security_group" "ecs_tasks" {
   }
 
   tags = {
-    Name      = "${var.cluster_name}-ecs-tasks-sg"
-    Project   = "agrox"
+    Name      = "${var.environment}-ecs-tasks-sg"
+    Project   = var.project_name
+    Environment = var.environment
     ManagedBy = "terraform"
   }
 }
-
